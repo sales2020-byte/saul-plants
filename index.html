@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saul Plant Library — Search</title>
+<style>
+  :root {
+    --bg: #f4f6f2;
+    --card: #ffffff;
+    --ink: #1c2a1a;
+    --muted: #5a6b57;
+    --line: #d5ddd0;
+    --accent: #2f6b3a;
+    --accent-soft: #e5f0e6;
+    --badge: #eef3ea;
+    --warn: #8a5a10;
+    --warn-bg: #fff6e5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  header {
+    background: #243a26;
+    color: #f5f8f3;
+    padding: 1rem 1.25rem 1.1rem;
+    border-bottom: 3px solid #3d6b42;
+  }
+  header h1 {
+    margin: 0 0 0.2rem;
+    font-size: 1.35rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+  header p {
+    margin: 0;
+    opacity: 0.85;
+    font-size: 0.92rem;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem 0.5rem;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: color-mix(in srgb, var(--bg) 92%, white);
+    backdrop-filter: blur(6px);
+    z-index: 5;
+    border-bottom: 1px solid var(--line);
+  }
+  #q {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+  }
+  #q:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 45%, white);
+    border-color: var(--accent);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    flex: 2 1 420px;
+  }
+  .chip {
+    border: 1px solid var(--line);
+    background: white;
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  #count {
+    font-size: 0.9rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  main {
+    padding: 1rem 1.25rem 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .grid {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.9rem;
+    align-items: start;
+  }
+  @media (max-width: 640px) {
+    .card { grid-template-columns: 1fr; }
+  }
+  .thumbs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .thumbs img {
+    width: 100%;
+    max-width: 120px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: #eee;
+    cursor: zoom-in;
+  }
+  .meta h2 {
+    margin: 0 0 0.15rem;
+    font-size: 1.08rem;
+  }
+  .bot {
+    margin: 0 0 0.45rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .bot i { font-style: italic; }
+  .badge {
+    display: inline-block;
+    background: var(--badge);
+    border: 1px solid var(--line);
+    color: #304530;
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+    font-size: 0.75rem;
+    margin-right: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+  .fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.9rem;
+    margin-top: 0.35rem;
+    font-size: 0.88rem;
+  }
+  .fields span strong {
+    color: var(--muted);
+    font-weight: 600;
+    margin-right: 0.2rem;
+  }
+  .ref {
+    display: inline-block;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-radius: 6px;
+    padding: 0.15rem 0.45rem;
+  }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 2.5rem 1rem;
+  }
+  .err {
+    background: #fdecea;
+    color: #7a1f1a;
+    border: 1px solid #f0c2bc;
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    margin: 1rem 1.25rem;
+  }
+  /* lightbox */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: min(960px, 96vw);
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+  }
+  #lightbox .cap {
+    position: absolute;
+    bottom: 1.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #eee;
+    font-size: 0.85rem;
+    background: rgba(0,0,0,0.55);
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    max-width: 90vw;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Saul Nurseries — Plant Library Search</h1>
+  <p>Search all catalog cards by name, botanical, cultivar, color, light, or keyword</p>
+</header>
+
+<div class="toolbar">
+  <input id="q" type="search" placeholder="Search plants… e.g. pansy, thyme, heuchera, shade" autocomplete="off" />
+  <div class="chips" id="chips"></div>
+  <div id="count">Loading…</div>
+</div>
+
+<div id="error" hidden class="err"></div>
+<main>
+  <div class="grid" id="results"></div>
+  <div class="empty" id="empty" hidden>No plants match.</div>
+</main>
+
+<div id="lightbox" role="dialog" aria-modal="true">
+  <img id="lb-img" alt="" />
+  <div class="cap" id="lb-cap"></div>
+</div>
+
+<script>
+const CATEGORIES = [
+  "All",
+  "Annuals",
+  "Full Sun Perennials",
+  "Shade Perennials",
+  "Ornamental Grasses",
+  "Hardy Ferns",
+  "Woody Ornamentals",
+  "Vines",
+  "Water & Wetland",
+  "Herbs & Edibles",
+];
+
+let plants = [];
+let category = "All";
+
+const qEl = document.getElementById("q");
+const chipsEl = document.getElementById("chips");
+const resultsEl = document.getElementById("results");
+const countEl = document.getElementById("count");
+const emptyEl = document.getElementById("empty");
+const errorEl = document.getElementById("error");
+const lb = document.getElementById("lightbox");
+const lbImg = document.getElementById("lb-img");
+const lbCap = document.getElementById("lb-cap");
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function renderChips() {
+  chipsEl.innerHTML = CATEGORIES.map(c =>
+    `<button type="button" class="chip${c === category ? " active" : ""}" data-cat="${esc(c)}">${esc(c)}</button>`
+  ).join("");
+}
+
+function tokens(q) {
+  return q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
+
+function termInBlob(term, blob) {
+  if (!term) return true;
+  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (new RegExp("(?<![a-z0-9])" + esc + "(?![a-z0-9])").test(blob)) return true;
+  return term.length >= 4 && term.includes(" ") && blob.includes(term);
+}
+
+function filterPlants() {
+  const terms = tokens(qEl.value);
+  return plants.filter(p => {
+    if (category !== "All" && p.category !== category) return false;
+    if (!terms.length) return true;
+    const blob = p.search_text || "";
+    return terms.every(t => termInBlob(t, blob));
+  });
+}
+
+function field(label, value) {
+  if (!value && value !== 0) return "";
+  return `<span><strong>${esc(label)}</strong>${esc(value)}</span>`;
+}
+
+function cardHTML(p) {
+  const photos = p.photos || [];
+  const thumbs = photos.slice(0, 2).map(ph =>
+    `<img src="${esc(ph.url)}" alt="" loading="lazy"
+      data-full="${esc(ph.url)}" data-cap="${esc(ph.caption || "")}" />`
+  ).join("") || `<div style="color:var(--muted);font-size:0.8rem">No photo</div>`;
+
+  const levels = [...new Set(photos.map(ph => ph.level).filter(Boolean))];
+  const refNote = levels.filter(l => l && l !== "exact").map(l =>
+    `<span class="ref">Photo: ${esc(l)}</span>`
+  ).join(" ");
+
+  const nativeBits = [];
+  if (p.native) nativeBits.push("Native");
+  if (p.se_native) nativeBits.push("SE native");
+  if (p.itsaul) nativeBits.push("It's Saul");
+
+  return `<article class="card">
+    <div class="thumbs">${thumbs}</div>
+    <div class="meta">
+      <div><span class="badge">${esc(p.category)}</span>${nativeBits.map(b => `<span class="badge">${esc(b)}</span>`).join("")}</div>
+      <h2>${esc(p.name)}</h2>
+      <p class="bot">${p.bot_html || esc(p.botanical)}</p>
+      <div class="fields">
+        ${field("Light", p.light)}
+        ${field("Space", p.space)}
+        ${field("Height", p.height)}
+        ${field("Color", p.color)}
+        ${field("Bloom", p.bloom)}
+        ${field("Cultivar", p.cultivar)}
+        ${field("Section", p.section)}
+      </div>
+      ${refNote}
+    </div>
+  </article>`;
+}
+
+function render() {
+  const hits = filterPlants();
+  countEl.textContent = `${hits.length} plant${hits.length === 1 ? "" : "s"}`;
+  if (!hits.length) {
+    resultsEl.innerHTML = "";
+    emptyEl.hidden = false;
+    return;
+  }
+  emptyEl.hidden = true;
+  // Cap DOM size for snappy typing; still searchable
+  const show = hits.slice(0, 200);
+  resultsEl.innerHTML = show.map(cardHTML).join("")
+    + (hits.length > show.length
+      ? `<p class="empty">Showing first ${show.length} of ${hits.length}. Refine your search.</p>`
+      : "");
+}
+
+function openLightbox(src, cap) {
+  lbImg.src = src;
+  lbCap.textContent = cap || "";
+  lb.classList.add("open");
+}
+
+chipsEl.addEventListener("click", e => {
+  const btn = e.target.closest(".chip");
+  if (!btn) return;
+  category = btn.dataset.cat;
+  renderChips();
+  render();
+});
+
+resultsEl.addEventListener("click", e => {
+  const img = e.target.closest("img[data-full]");
+  if (!img) return;
+  openLightbox(img.dataset.full, img.dataset.cap);
+});
+
+lb.addEventListener("click", () => lb.classList.remove("open"));
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") lb.classList.remove("open");
+});
+
+let t = null;
+qEl.addEventListener("input", () => {
+  clearTimeout(t);
+  t = setTimeout(render, 60);
+});
+
+async function init() {
+  renderChips();
+  try {
+    const res = await fetch("plants.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(`Could not load plants.json (${res.status})`);
+    plants = await res.json();
+    render();
+    qEl.focus();
+  } catch (err) {
+    errorEl.hidden = false;
+    errorEl.textContent =
+      "Could not load plants.json. Serve from the library root: cd /workspace/saul-plant-library && python3 -m http.server 8765 then open http://localhost:8765/search/ — " +
+      err.message;
+    countEl.textContent = "Error";
+  }
+}
+init();
+</script>
+</body>
+</html>
