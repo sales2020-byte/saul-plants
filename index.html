@@ -215,6 +215,26 @@
     border-radius: 6px;
     max-width: 90vw;
   }
+  /* detail view */
+  .card { cursor: pointer; }
+  .more { margin-top:0.5rem; font-size:0.82rem; color:var(--accent); font-weight:600; }
+  #detail { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:40; overflow-y:auto; padding:2rem 1rem; }
+  #detail.open { display:block; }
+  .dbox { background:white; max-width:900px; margin:0 auto; border-radius:14px; padding:1.25rem 1.4rem 1.5rem; position:relative; }
+  .dclose { position:absolute; top:0.6rem; right:0.8rem; border:0; background:none; font-size:1.7rem; cursor:pointer; color:var(--muted); }
+  .dbox h2 { margin:0 2rem 0.1rem 0; font-size:1.4rem; }
+  .dphotos { display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.8rem 0; }
+  .dphotos img { height:200px; max-width:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line); cursor:zoom-in; }
+  .dcols { display:grid; grid-template-columns:1fr 1fr; gap:0.9rem; margin-top:0.8rem; }
+  @media (max-width:700px){ .dcols { grid-template-columns:1fr; } }
+  .sec { border:1px solid var(--line); border-radius:10px; padding:0.7rem 0.9rem; background:#fbfcfa; }
+  .sec h3 { margin:0 0 0.4rem; font-size:1rem; color:var(--accent); }
+  .sec ul { margin:0; padding-left:1.1rem; } .sec li { margin-bottom:0.3rem; font-size:0.92rem; }
+  .care { margin-bottom:0.45rem; font-size:0.92rem; } .care b { display:block; color:#304530; }
+  .note { margin-top:0.9rem; border-radius:10px; padding:0.7rem 0.9rem; background:#eef4fb; border:1px solid #c9d9ec; font-size:0.92rem; }
+  .note.warn { background:var(--warn-bg); border-color:#ecd3a5; color:#5c3d08; }
+  .talk { margin-top:0.9rem; }
+  #lightbox { z-index:60; }
 </style>
 </head>
 <body>
@@ -234,6 +254,8 @@
   <div class="grid" id="results"></div>
   <div class="empty" id="empty" hidden>No plants match.</div>
 </main>
+
+<div id="detail" role="dialog" aria-modal="true"><div class="dbox" id="dbox"></div></div>
 
 <div id="lightbox" role="dialog" aria-modal="true">
   <img id="lb-img" alt="" />
@@ -322,7 +344,7 @@ function cardHTML(p) {
   if (p.se_native) nativeBits.push("SE native");
   if (p.itsaul) nativeBits.push("It's Saul");
 
-  return `<article class="card">
+  return `<article class="card" data-id="${esc(p.id)}">
     <div class="thumbs">${thumbs}</div>
     <div class="meta">
       <div><span class="badge">${esc(p.category)}</span>${nativeBits.map(b => `<span class="badge">${esc(b)}</span>`).join("")}</div>
@@ -338,6 +360,7 @@ function cardHTML(p) {
         ${field("Section", p.section)}
       </div>
       ${refNote}
+      ${p.desc ? `<div class="more">Show full description ›</div>` : ""}
     </div>
   </article>`;
 }
@@ -373,15 +396,53 @@ chipsEl.addEventListener("click", e => {
   render();
 });
 
+const detail = document.getElementById("detail");
+const dbox = document.getElementById("dbox");
+function detailHTML(p) {
+  const d = p.desc || {};
+  const photos = (p.photos || []).map(ph =>
+    `<img src="${esc(ph.url)}" alt="" loading="lazy" data-full="${esc(ph.url)}" data-cap="${esc(ph.caption || "")}" />`).join("");
+  const list = a => `<ul>${(a || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  const care = d.care || {};
+  const ex = d.extra || {};
+  return `<button class="dclose" aria-label="Close">×</button>
+    <div><span class="badge">${esc(p.category)}</span>${(d.tags || []).map(t => `<span class="badge">${esc(t)}</span>`).join("")}</div>
+    <h2>${esc(p.name)}</h2>
+    <p class="bot">${p.bot_html || esc(p.botanical)}</p>
+    <div class="fields">${field("Light", p.light)}${field("Space", p.space)}${field("Height", p.height)}${field("Color", p.color)}${field("Bloom", p.bloom)}${field("Cultivar", p.cultivar)}${field("Section", p.section)}</div>
+    ${photos ? `<div class="dphotos">${photos}</div>` : `<p class="ref">No photo available — verify on the sales floor</p>`}
+    ${p.desc ? `<div class="dcols">
+      <div class="sec"><h3>🔍 How to ID it</h3>${list(d.id_tips)}</div>
+      <div class="sec"><h3>🌱 Care basics</h3>
+        <div class="care"><b>☀ Light</b>${esc(care.light)}</div>
+        <div class="care"><b>💧 Water</b>${esc(care.water)}</div>
+        <div class="care"><b>🪴 Soil</b>${esc(care.soil)}</div></div>
+    </div>
+    ${ex.text ? `<div class="note${ex.label === "Caution" ? " warn" : ""}"><b>${ex.label === "Caution" ? "⚠" : "❄"} ${esc(ex.label)}:</b> ${esc(ex.text)}</div>` : ""}
+    <div class="sec talk"><h3>💬 Talking points</h3>${list(d.talk)}</div>` : ""}`;
+}
+function openDetail(p) {
+  dbox.innerHTML = detailHTML(p);
+  detail.classList.add("open");
+  detail.scrollTop = 0;
+}
 resultsEl.addEventListener("click", e => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  const p = plants.find(x => x.id === card.dataset.id);
+  if (p) openDetail(p);
+});
+detail.addEventListener("click", e => {
   const img = e.target.closest("img[data-full]");
-  if (!img) return;
-  openLightbox(img.dataset.full, img.dataset.cap);
+  if (img) { openLightbox(img.dataset.full, img.dataset.cap); return; }
+  if (e.target === detail || e.target.closest(".dclose")) detail.classList.remove("open");
 });
 
 lb.addEventListener("click", () => lb.classList.remove("open"));
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") lb.classList.remove("open");
+  if (e.key !== "Escape") return;
+  if (lb.classList.contains("open")) lb.classList.remove("open");
+  else detail.classList.remove("open");
 });
 
 let t = null;
@@ -396,6 +457,12 @@ async function init() {
     const res = await fetch("plants.json", { cache: "no-store" });
     if (!res.ok) throw new Error(`Could not load plants.json (${res.status})`);
     plants = await res.json();
+    for (const p of plants) {
+      const d = p.desc;
+      if (!d) continue;
+      const extra = [...(d.tags || []), ...(d.id_tips || []), ...Object.values(d.care || {}), (d.extra || {}).label, (d.extra || {}).text, ...(d.talk || [])];
+      p.search_text = ((p.search_text || "") + " " + extra.filter(Boolean).join(" ")).toLowerCase();
+    }
     render();
     qEl.focus();
   } catch (err) {
